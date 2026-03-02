@@ -26,8 +26,7 @@ export default function RegisterScreen() {
     try {
       setLoading(true);
       setError("");
-      await register(email.trim(), password);
-      router.replace("/(tabs)");
+     await register(email.trim(), password, fullName.trim());      router.replace("/(tabs)");
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       if (msg.includes("email-already-in-use"))
