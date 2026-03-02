@@ -3,7 +3,7 @@ import type { Persistence } from "firebase/auth";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import * as FirebaseAuth from "firebase/auth";
 import { Platform } from "react-native";
-
+import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: "AIzaSyCBL15ldn0FpcKMiDE6iekBnLYiO77RgMs",
   authDomain: "recolte-2cfb9.firebaseapp.com",
@@ -11,7 +11,7 @@ const firebaseConfig = {
   storageBucket: "recolte-2cfb9.firebasestorage.app",
   messagingSenderId: "785553259723",
   appId: "1:785553259723:web:339f416629cc9a7551ef4e",
-  measurementId: "G-6G7GCYTQGP"
+  measurementId: "G-6G7GCYTQGP",
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -29,9 +29,8 @@ function createAuth() {
 
   try {
     return FirebaseAuth.initializeAuth(app, {
-      persistence: reactNativeFirebaseAuth.getReactNativePersistence(
-        AsyncStorage
-      ),
+      persistence:
+        reactNativeFirebaseAuth.getReactNativePersistence(AsyncStorage),
     });
   } catch (error) {
     if ((error as { code?: string }).code === "auth/already-initialized") {
@@ -43,3 +42,4 @@ function createAuth() {
 }
 
 export const auth = createAuth();
+export const db = getFirestore(app);
