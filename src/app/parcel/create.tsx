@@ -48,7 +48,10 @@ export default function CreateParcelScreen() {
         totalSurface: surface,
         notes: notes.trim() || undefined,
       });
-      router.replace(`/parcel/${parcel.id}`);
+      router.replace({
+        pathname: "/parcel/[id]",
+        params: { id: parcel.id },
+      });
     } catch {
       setError("Une erreur est survenue. Veuillez réessayer.");
     } finally {

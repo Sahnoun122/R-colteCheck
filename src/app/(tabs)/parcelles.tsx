@@ -102,7 +102,12 @@ export default function ParcellesScreen() {
           renderItem={({ item }) => (
             <Pressable
               style={styles.card}
-              onPress={() => router.push(`/parcel/${item.id}`)}
+              onPress={() =>
+                router.push({
+                  pathname: "/parcel/[id]",
+                  params: { id: item.id },
+                })
+              }
             >
               <View style={styles.cardIcon}>
                 <Ionicons name="leaf" size={24} color={Colors.primary} />
@@ -129,7 +134,12 @@ export default function ParcellesScreen() {
               <View style={styles.cardActions}>
                 <Pressable
                   style={styles.actionBtn}
-                  onPress={() => router.push(`/parcel/edit/${item.id}`)}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/parcel/edit/[id]",
+                      params: { id: item.id },
+                    })
+                  }
                   hitSlop={8}
                 >
                   <Ionicons

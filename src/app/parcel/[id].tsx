@@ -104,7 +104,12 @@ export default function ParcelDetailScreen() {
           {parcel.name}
         </Text>
         <Pressable
-          onPress={() => router.push(`/parcel/edit/${parcel.id}`)}
+          onPress={() =>
+            router.push({
+              pathname: "/parcel/edit/[id]",
+              params: { id: parcel.id },
+            })
+          }
           hitSlop={8}
         >
           <Ionicons name="pencil-outline" size={20} color={Colors.primary} />
@@ -198,7 +203,12 @@ export default function ParcelDetailScreen() {
             <Pressable
               key={zone.id}
               style={styles.zoneCard}
-              onPress={() => router.push(`/zone/edit/${zone.id}`)}
+              onPress={() =>
+                router.push({
+                  pathname: "/zone/edit/[id]",
+                  params: { id: zone.id },
+                })
+              }
             >
               <View style={styles.zoneLeft}>
                 <View style={styles.zoneIconBg}>

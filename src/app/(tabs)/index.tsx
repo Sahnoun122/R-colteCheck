@@ -86,7 +86,12 @@ export default function HomeTab() {
             <Pressable
               key={p.id}
               style={styles.recentCard}
-              onPress={() => router.push(`/parcel/${p.id}`)}
+              onPress={() =>
+                router.push({
+                  pathname: "/parcel/[id]",
+                  params: { id: p.id },
+                })
+              }
             >
               <View style={styles.recentIcon}>
                 <Ionicons name="leaf" size={18} color={Colors.primary} />
