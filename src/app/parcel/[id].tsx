@@ -1,4 +1,5 @@
 import { Colors } from "@/src/constants/colors";
+import { getHarvestsByParcel } from "@/src/services/harvest.service";
 import { deleteParcel, getParcel } from "@/src/services/parcel.service";
 import { deleteZone, getZonesByParcel } from "@/src/services/zone.service";
 import { Parcel } from "@/src/types/parcel";
@@ -7,13 +8,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 export default function ParcelDetailScreen() {
@@ -21,15 +22,38 @@ export default function ParcelDetailScreen() {
 
   const [parcel, setParcel] = useState<Parcel | null>(null);
   const [zones, setZones] = useState<Zone[]>([]);
+  const [harvestStatsByZone, setHarvestStatsByZone] = useState<
+    Record<string, { totalKg: number; count: number }>
+  >({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const [p, z] = await Promise.all([getParcel(id), getZonesByParcel(id)]);
+      const [p, z, harvests] = await Promise.all([
+        getParcel(id),
+        getZonesByParcel(id),
+        getHarvestsByParcel(id),
+      ]);
       setParcel(p);
       setZones(z);
+
+      const stats = harvests.reduce(
+        (acc, harvest) => {
+          const current = acc[harvest.zoneId] ?? { totalKg: 0, count: 0 };
+          current.totalKg += harvest.quantityKg;
+          current.count += 1;
+          acc[harvest.zoneId] = current;
+          return acc;
+        },
+        {} as Record<string, { totalKg: number; count: number }>,
+      );
+      setHarvestStatsByZone(stats);
     } finally {
       setLoading(false);
     }
@@ -42,7 +66,7 @@ export default function ParcelDetailScreen() {
   const handleDeleteParcel = () => {
     Alert.alert(
       "Supprimer la parcelle",
-      "Cette action supprime la parcelle. Les zones devront être supprimées séparément.",
+      "Cette action supprime la parcelle. Les zones devront etre supprimees separement.",
       [
         { text: "Annuler", style: "cancel" },
         {
@@ -66,6 +90,11 @@ export default function ParcelDetailScreen() {
         onPress: async () => {
           await deleteZone(zone.id);
           setZones((prev) => prev.filter((z) => z.id !== zone.id));
+          setHarvestStatsByZone((prev) => {
+            const next = { ...prev };
+            delete next[zone.id];
+            return next;
+          });
         },
       },
     ]);
@@ -88,10 +117,13 @@ export default function ParcelDetailScreen() {
   }
 
   const totalZoneSurface = zones.reduce((sum, z) => sum + (z.surface ?? 0), 0);
+  const totalProductionKg = Object.values(harvestStatsByZone).reduce(
+    (sum, s) => sum + s.totalKg,
+    0,
+  );
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
@@ -120,7 +152,6 @@ export default function ParcelDetailScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Info card */}
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Ionicons
@@ -130,7 +161,7 @@ export default function ParcelDetailScreen() {
             />
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Localisation</Text>
-              <Text style={styles.infoValue}>{parcel.location || "—"}</Text>
+              <Text style={styles.infoValue}>{parcel.location || "-"}</Text>
             </View>
           </View>
           <View style={styles.divider} />
@@ -145,11 +176,23 @@ export default function ParcelDetailScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="layers-outline" size={18} color={Colors.primary} />
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Zones enregistrées</Text>
+              <Text style={styles.infoLabel}>Zones enregistrees</Text>
               <Text style={styles.infoValue}>
-                {zones.length} zone{zones.length !== 1 ? "s" : ""} —{" "}
+                {zones.length} zone{zones.length !== 1 ? "s" : ""} - {" "}
                 {totalZoneSurface.toFixed(2)} ha
               </Text>
+            </View>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Ionicons
+              name="bar-chart-outline"
+              size={18}
+              color={Colors.primary}
+            />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Production totale</Text>
+              <Text style={styles.infoValue}>{totalProductionKg.toFixed(2)} kg</Text>
             </View>
           </View>
           {parcel.notes ? (
@@ -170,7 +213,6 @@ export default function ParcelDetailScreen() {
           ) : null}
         </View>
 
-        {/* Zones section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Zones de culture</Text>
           <Pressable
@@ -195,22 +237,21 @@ export default function ParcelDetailScreen() {
               color={Colors.primaryLight}
             />
             <Text style={styles.emptyZonesText}>
-              Aucune zone définie — Ajoutez une zone de culture.
+              Aucune zone definie. Ajoutez une zone de culture.
             </Text>
           </View>
         ) : (
           zones.map((zone) => (
-            <Pressable
-              key={zone.id}
-              style={styles.zoneCard}
-              onPress={() =>
-                router.push({
-                  pathname: "/zone/edit/[id]",
-                  params: { id: zone.id },
-                })
-              }
-            >
-              <View style={styles.zoneLeft}>
+            <View key={zone.id} style={styles.zoneCard}>
+              <Pressable
+                style={styles.zoneLeft}
+                onPress={() =>
+                  router.push({
+                    pathname: "../harvest/zone/[zoneId]",
+                    params: { zoneId: zone.id },
+                  })
+                }
+              >
                 <View style={styles.zoneIconBg}>
                   <Ionicons
                     name="grid-outline"
@@ -221,27 +262,51 @@ export default function ParcelDetailScreen() {
                 <View style={styles.zoneBody}>
                   <Text style={styles.zoneName}>{zone.name}</Text>
                   <Text style={styles.zoneCulture}>
-                    🌱 {zone.culture} — {zone.surface} ha
+                    Culture: {zone.culture} - {zone.surface} ha
+                  </Text>
+                  <Text style={styles.zoneHarvestSummary}>
+                    Production: {" "}
+                    {(harvestStatsByZone[zone.id]?.totalKg ?? 0).toFixed(2)} kg
+                    {"  "}({harvestStatsByZone[zone.id]?.count ?? 0} recolte
+                    {(harvestStatsByZone[zone.id]?.count ?? 0) > 1 ? "s" : ""})
                   </Text>
                   {zone.harvestPeriodStart && zone.harvestPeriodEnd ? (
                     <Text style={styles.zoneDate}>
-                      🗓 {zone.harvestPeriodStart} → {zone.harvestPeriodEnd}
+                      Periode: {zone.harvestPeriodStart} -> {zone.harvestPeriodEnd}
                     </Text>
                   ) : null}
+                  <Text style={styles.zoneHint}>Appuyez pour voir les recoltes</Text>
                 </View>
-              </View>
-              <Pressable
-                onPress={() => handleDeleteZone(zone)}
-                hitSlop={8}
-                style={{ padding: 4 }}
-              >
-                <Ionicons name="trash-outline" size={17} color={Colors.error} />
               </Pressable>
-            </Pressable>
+              <View style={styles.zoneActions}>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/zone/edit/[id]",
+                      params: { id: zone.id },
+                    })
+                  }
+                  hitSlop={8}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons
+                    name="pencil-outline"
+                    size={17}
+                    color={Colors.primary}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeleteZone(zone)}
+                  hitSlop={8}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="trash-outline" size={17} color={Colors.error} />
+                </Pressable>
+              </View>
+            </View>
           ))
         )}
 
-        {/* Delete parcel */}
         <Pressable style={styles.deleteParcelBtn} onPress={handleDeleteParcel}>
           <Ionicons name="trash-outline" size={18} color={Colors.error} />
           <Text style={styles.deleteParcelText}>Supprimer cette parcelle</Text>
@@ -336,7 +401,10 @@ const styles = StyleSheet.create({
   zoneBody: { flex: 1, gap: 2 },
   zoneName: { fontSize: 14, fontWeight: "600", color: Colors.text },
   zoneCulture: { fontSize: 13, color: Colors.textSecondary },
+  zoneHarvestSummary: { fontSize: 12, color: Colors.primary },
   zoneDate: { fontSize: 12, color: Colors.textMuted },
+  zoneHint: { fontSize: 11, color: Colors.textMuted },
+  zoneActions: { flexDirection: "row", marginLeft: 8, gap: 6 },
   emptyZones: {
     backgroundColor: Colors.white,
     borderRadius: 10,
